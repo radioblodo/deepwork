@@ -1,10 +1,15 @@
 package com.example.deepwork.views
 
 import android.annotation.SuppressLint
+import android.app.Activity
+import android.content.Context
+import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -22,8 +27,25 @@ import com.example.deepwork.ui.theme.DeepWorkTheme
 import com.example.deepwork.viewmodel.AppViewModel
 
 class LockScreenActivity : ComponentActivity() {
+    @RequiresApi(Build.VERSION_CODES.O_MR1)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Prevent lock screen from being swiped away
+        window.addFlags(
+            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+                    WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+                    WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                    WindowManager.LayoutParams.FLAG_FULLSCREEN or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+        )
+        setShowWhenLocked(true)
+        setTurnScreenOn(true)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            if (!isInLockTaskMode()) {
+                startLockTask()
+            }
+        }
         setContent {
             DeepWorkTheme {
                 // A surface container using the 'background' color from the theme
@@ -35,6 +57,9 @@ class LockScreenActivity : ComponentActivity() {
                     LockScreen(
                         appViewModel = appViewModel,
                         onUnlockSuccess = {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                                stopLockTask()
+                            }
                             // In a real app, this would tell the AppBlockingService
                             // to temporarily stop blocking or allow access.
                             // For this example, we just finish the activity.
@@ -48,12 +73,11 @@ class LockScreenActivity : ComponentActivity() {
     }
 
     // Override onBackPressed to prevent easy bypass
-    @SuppressLint("GestureBackNavigation")
+    @SuppressLint("MissingSuperCall", "GestureBackNavigation")
     override fun onBackPressed() {
-        super.onBackPressed()
-        // Do nothing or show a message that it's locked
-        Toast.makeText(this, "Device is locked for detox!", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "Stay focused! You cannot exit right now.", Toast.LENGTH_SHORT).show()
     }
+
 }
 
 @Composable
@@ -144,5 +168,14 @@ fun LockScreen(
 fun PreviewLockScreen() {
     DeepWorkTheme {
         LockScreen(appViewModel = AppViewModel(), onUnlockSuccess = {})
+    }
+}
+
+fun Activity.isInLockTaskMode(): Boolean {
+    val activityManager = getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        activityManager.lockTaskModeState != android.app.ActivityManager.LOCK_TASK_MODE_NONE
+    } else {
+        activityManager.isInLockTaskMode
     }
 }

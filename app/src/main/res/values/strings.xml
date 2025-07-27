@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">DeepWork</string>
+    <string name="accessibility_service_description">Deepwork app blocking service</string>
 </resources>
